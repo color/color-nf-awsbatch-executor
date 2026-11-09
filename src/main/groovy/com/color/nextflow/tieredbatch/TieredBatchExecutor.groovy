@@ -1,6 +1,8 @@
 package com.color.nextflow.tieredbatch
 
+import com.google.common.util.concurrent.RateLimiter
 import groovy.util.logging.Slf4j
+import java.util.concurrent.TimeUnit
 import nextflow.cloud.aws.batch.AwsBatchExecutor
 import nextflow.exception.ProcessUnrecoverableException
 import nextflow.processor.TaskArrayRun
@@ -13,6 +15,8 @@ import nextflow.util.ServiceName
 class TieredBatchExecutor extends AwsBatchExecutor {
     private TieredBatchConfig tieredConfig
     protected TaskRetryStateStore retryStates
+    // Shared by every task and SDK retry; upstream's adaptive throttle can exceed 50/s.
+    final BatchSubmissionPlugin submissionPlugin = new BatchSubmissionPlugin(RateLimiter.create(20d, 1, TimeUnit.SECONDS))
 
     @Override
     protected void register() {

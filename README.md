@@ -13,9 +13,16 @@ after Batch succeeds (for example, missing outputs).
 
 The executor retains upstream job definitions, staging, cancellation, resource
 requests, polling, and API throttling. Each execution is a distinct Nextflow attempt
-and Batch job. It forces one Batch execution per submission and disables SDK retries
-on SubmitJob. If a submission fails or its response is lost, execution stops: inspect
-accepted jobs before resuming rather than risking duplicate submissions.
+and Batch job. It forces one Batch execution per submission. SubmitJob requests share
+a per-executor limit of 20 requests/second, including retries, without accumulating
+burst capacity while idle. This leaves headroom under AWS's account/Region quota of
+50 requests/second, but concurrent leaders still share that quota. Upstream adaptive
+throttling may ramp up; the submission limit remains in force independently.
+
+Only explicit HTTP 429 rejections are retried, with standard SDK backoff and jitter
+and at most five total HTTP attempts. Rejections do not create Batch jobs or consume
+task execution retry budgets. Timeouts, server errors, and other ambiguous outcomes
+still stop execution: inspect accepted jobs before resuming to avoid duplicates.
 
 ## Get started
 
@@ -36,7 +43,7 @@ installed `nf-amazon` plugin through its declared plugin dependency.
 ```groovy
 plugins {
     id 'nf-amazon@3.9.1'
-    id 'color-nf-awsbatch-executor@0.3.0'
+    id 'color-nf-awsbatch-executor@0.3.1'
 }
 
 process {

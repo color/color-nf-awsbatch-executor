@@ -20,6 +20,7 @@ class TieredBatchTaskHandler extends AwsBatchTaskHandler {
     private final String taskKey
     private final TieredRetryPolicy.Tier tier
     private final String selectedQueue
+    private final BatchSubmissionPlugin submissionPlugin
     private JobDetail observedJob
     BatchFailureClassifier.Failure reportedFailure
     TieredRetryPolicy.Tier getReportedTier() { tier }
@@ -31,6 +32,7 @@ class TieredBatchTaskHandler extends AwsBatchTaskHandler {
         this.taskKey = taskKey
         this.tier = tier
         selectedQueue = queue
+        submissionPlugin = executor.submissionPlugin
     }
 
     @Override
@@ -41,7 +43,7 @@ class TieredBatchTaskHandler extends AwsBatchTaskHandler {
         def tags = new LinkedHashMap<>(request.tags())
         tags.put('job-queue', selectedQueue)
         def override = request.overrideConfiguration().orElse(AwsRequestOverrideConfiguration.builder().build()).toBuilder()
-            .addPlugin(new SingleSubmissionPlugin()).build()
+            .addPlugin(submissionPlugin).build()
         return request.toBuilder().jobQueue(selectedQueue).tags(tags)
             .retryStrategy(RetryStrategy.builder().attempts(1).build())
             .overrideConfiguration(override).build()
